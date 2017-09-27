@@ -119,16 +119,11 @@ funtooNormApply <- function(signal, quantiles, qntllist,
     prediction <- function(x){
         fit <- pls::mvr(x~ctl.covmat, ncmp=ncmp, method=method.mvr)
         newdata=data.frame(apply(ctl.covmat,2,mean))
-<<<<<<< HEAD
         outfit.mean <- predict(fit, t(newdata))
-=======
-        outfit.mean <- predict(fit, newdata)
->>>>>>> 45684b2e54a2cb88cd850db564eb80eee7321595
         outfit.indiv <- fit$fitted.values[,,ncmp]
         return(list(outfit.mean,outfit.indiv))
     }
     
-<<<<<<< HEAD
     predictions <- apply(quantiles,2,prediction)
         pred.mean.ctl <- unlist(lapply(predictions,function(x) x[[1]][1,1,ncmp]))
         pred.ctl      <- matrix(unlist(lapply(predictions,function(x) x[[2]])),
@@ -137,13 +132,6 @@ funtooNormApply <- function(signal, quantiles, qntllist,
     predmat <- sapply(1:ncol(signal),function(x){
         stats::approx(qntllist,pred.mean.ctl, xout=rankmat[,x])$y + 
             (signal[,x]-stats::approx(qntllist,pred.ctl[,x],xout=rankmat[,x])$y)
-=======
-    predictions <- prediction(quantiles)
-    rankmat <- (apply(signal,2,  rank) - 0.5)/nrow(signal)
-    predmat <- sapply(1:ncol(signal),function(x){
-        stats::approx(qntllist,predictions[[1]][x,,ncmp], xout=rankmat[,x])$y + 
-            (rankmat[,x]-stats::approx(qntllist,predictions[[2]][x,],xout=rankmat[,x])$y)
->>>>>>> 45684b2e54a2cb88cd850db564eb80eee7321595
     })
     return(predmat)
 }

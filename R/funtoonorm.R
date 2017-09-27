@@ -99,6 +99,10 @@ quantileNormalization <- function(mat){
     return(apply(mat_ranked,2,function(x) averagePerQuantiles[x]))
 }
 
+################################################################################
+## 
+## 
+## 
 
 
 ################################################################################
@@ -113,13 +117,19 @@ funtooNormApply <- function(signal, quantiles, qntllist,
     else stop("type.fits must be PCR or PLS")
     
     ## Fitting the model
-    regression <- function(x) pls::mvr(x ~ ctl.covmat,
-                                ncomp=ncmp,
-                                method=method.mvr)$fitted.values[,1,ncmp]
-    prediction <- apply(quantiles,2,regression)
+    prediction <- function(x){
+        fit <- pls::mvr(x~ctl.covmat, ncmp=ncmp, method=method.mvr)
+        newdata=data.frame(apply(ctl.covmat,2,mean))
+        outfit.mean <- predict(fit, newdata)
+        outfit.indiv <- fit$fitted.values[,,ncmp]
+        return(list(outfit.mean,outfit.indiv))
+    }
+    
+    predictions <- prediction(quantiles)
     rankmat <- (apply(signal,2,  rank) - 0.5)/nrow(signal)
     predmat <- sapply(1:ncol(signal),function(x){
-    stats::approx(qntllist,prediction[x,],xout=rankmat[,x])$y
+        stats::approx(qntllist,predictions[[1]][x,,ncmp], xout=rankmat[,x])$y + 
+            (rankmat[,x]-stats::approx(qntllist,predictions[[2]][x,],xout=rankmat[,x])$y)
     })
     return(predmat)
 }

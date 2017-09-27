@@ -100,7 +100,6 @@ quantileNormalization <- function(mat){
 }
 
 
-
 ################################################################################
 ## Main function of the package, apply a fit to a signal according to a number 
 ## of component 
@@ -113,13 +112,22 @@ funtooNormApply <- function(signal, quantiles, qntllist,
     else stop("type.fits must be PCR or PLS")
     
     ## Fitting the model
-    regression <- function(x) pls::mvr(x ~ ctl.covmat,
-                                ncomp=ncmp,
-                                method=method.mvr)$fitted.values[,1,ncmp]
-    prediction <- apply(quantiles,2,regression)
+    prediction <- function(x){
+        fit <- pls::mvr(x~ctl.covmat, ncmp=ncmp, method=method.mvr)
+        newdata=data.frame(apply(ctl.covmat,2,mean))
+        outfit.mean <- predict(fit, t(newdata))
+        outfit.indiv <- fit$fitted.values[,,ncmp]
+        return(list(outfit.mean,outfit.indiv))
+    }
+    
+    predictions <- apply(quantiles,2,prediction)
+        pred.mean.ctl <- unlist(lapply(predictions,function(x) x[[1]][1,1,ncmp]))
+        pred.ctl      <- matrix(unlist(lapply(predictions,function(x) x[[2]])),
+                                nrow=ncol(quantiles),byrow = TRUE)   
     rankmat <- (apply(signal,2,  rank) - 0.5)/nrow(signal)
     predmat <- sapply(1:ncol(signal),function(x){
-    stats::approx(qntllist,prediction[x,],xout=rankmat[,x])$y
+        stats::approx(qntllist,pred.mean.ctl, xout=rankmat[,x])$y + 
+            (signal[,x]-stats::approx(qntllist,pred.ctl[,x],xout=rankmat[,x])$y)
     })
     return(predmat)
 }

@@ -107,12 +107,11 @@ fromRGChannelSet <- function(myRGChannelSet){
                               ]
     #Here we remove the 15 probes that cannot be in the GenomeStudio output
     controlTable=controlTable[controlTable$Color!="-99",]
-    controlred=as.data.frame(minfi::getRed(myRGChannelSet)[controlTable$Address,
-                                                           ])
-    
-    controlgrn=as.data.frame(minfi::getGreen(myRGChannelSet)[controlTable$Address,
-                                                             ])
-    
+    controlred=as.data.frame(minfi::getRed(myRGChannelSet))
+      controlred=controlred[controlTable$Address,]
+
+    controlgrn=as.data.frame(minfi::getGreen(myRGChannelSet))
+      controlgrn=controlgrn[controlTable$Address,]
     cp.types=controlTable$Type
     
     controlgrn <- log2(1 + controlgrn)
@@ -125,7 +124,7 @@ fromRGChannelSet <- function(myRGChannelSet){
                            object@annotation["array"],
                            object@annotation["annotation"]),
                    orderByLocation = FALSE)
-    pos=cbind(names(loc),as.character(GenomeInfoDb::seqnames(loc)),start(loc))
+    # pos=cbind(names(loc),as.character(GenomeInfoDb::seqnames(loc)),start(loc))
     
     chrYnames=names(loc)[as.character(GenomeInfoDb::seqnames(loc))=="chrY"]
     
@@ -135,11 +134,16 @@ fromRGChannelSet <- function(myRGChannelSet){
     TypeI.Green <- rbind(minfi::getProbeInfo(object@annotation, 
                                              type = "I-Green"),
                        SnpI[SnpI$Color == "Grn",])
+    
+    sigA=minfi::getGreen(myRGChannelSet)
+      sigA=sigA[intersect(TypeI.Green$AddressA,row.names(sigA)),]
+    sigB=minfi::getGreen(myRGChannelSet)
+      sigB=sigB[intersect(TypeI.Green$AddressB,row.names(sigB)),]
+    sub1 <- TypeI.Green$AddressA %in% row.names(sigA)
+    TypeI.Green <- TypeI.Green[sub1,]
     sub=TypeI.Green$Name %in% chrYnames
     object@names$IGrn=TypeI.Green$Name[!sub]
-    object@names$chrY=TypeI.Green$Name[sub]
-    sigA=minfi::getGreen(myRGChannelSet)[TypeI.Green$AddressA,]
-    sigB=minfi::getGreen(myRGChannelSet)[TypeI.Green$AddressB,]
+    object@names$chrY=TypeI.Green$Name[sub]  
     object@signal$AIGrn=sigA[!sub,]
     object@signal$BIGrn=sigB[!sub,]
     object@signal$BchrY=sigB[sub,]
@@ -148,11 +152,15 @@ fromRGChannelSet <- function(myRGChannelSet){
     ## Type I Red
     TypeI.Red <- rbind(minfi::getProbeInfo(object@annotation, type = "I-Red"),
                      SnpI[SnpI$Color == "Red",])
+    sigA=minfi::getRed(myRGChannelSet)
+      sigA=sigA[intersect(TypeI.Red$AddressA,row.names(sigA)),]
+    sigB=minfi::getRed(myRGChannelSet)
+      sigB=sigB[intersect(TypeI.Red$AddressB,row.names(sigB)),]
+    sub1 <- TypeI.Red$AddressA %in% row.names(sigA)
+    TypeI.Red <- TypeI.Red[sub1,]
     sub=TypeI.Red$Name %in% chrYnames
     object@names$IRed=TypeI.Red$Name[!sub]
     object@names$chrY=c(object@names$chrY,TypeI.Red$Name[sub])
-    sigA=minfi::getRed(myRGChannelSet)[TypeI.Red$AddressA,]
-    sigB=minfi::getRed(myRGChannelSet)[TypeI.Red$AddressB,]
     object@signal$AIRed=sigA[!sub,]
     object@signal$BIRed=sigB[!sub,]
     object@signal$AchrY=rbind(object@signal$AchrY,sigA[sub,])
@@ -161,11 +169,15 @@ fromRGChannelSet <- function(myRGChannelSet){
     ## Type II
     TypeII <- rbind(minfi::getProbeInfo(object@annotation, type = "II"),
                   minfi::getProbeInfo(object@annotation, type = "SnpII"))
+    sigA=minfi::getRed(myRGChannelSet)
+      sigA=sigA[intersect(TypeII$AddressA,row.names(sigA)),]
+    sigB=minfi::getGreen(myRGChannelSet)
+      sigB=sigB[intersect(TypeII$AddressA, row.names(sigB)),]
+    sub1 <- TypeII$AddressA %in% row.names(sigA)
+    TypeII <- TypeII[sub1,]  
     sub=TypeII$Name %in% chrYnames
     object@names$II=TypeII$Name[!sub]
     object@names$chrY=c(object@names$chrY,TypeII$Name[sub])
-    sigA=minfi::getRed(myRGChannelSet)[TypeII$AddressA,]
-    sigB=minfi::getGreen(myRGChannelSet)[TypeII$AddressA,]
     object@signal$AII=sigA[!sub,]
     object@signal$BII=sigB[!sub,]
     object@signal$AchrY=rbind(object@signal$AchrY,sigA[sub,])
@@ -596,7 +608,7 @@ setMethod("funtooNorm",
               ###### this part deal with chrY
               if(is.null(sex)){
                   mens=matrixStats::colMedians(calcBeta(object@signal$AchrY,
-                                                    object@signal$BchrY))<0.6
+                                                    object@signal$BchrY))>=0.6
                   message("we found ",sum(mens)," men and ",sum(!mens),
                           " women in your data set base on Y probes only")
                   }else{
@@ -607,7 +619,7 @@ setMethod("funtooNorm",
               # no correction for women
               object@predmat$AchrY=object@signal$AchrY
               object@predmat$BchrY=object@signal$BchrY
-              if(1<sum(mens)){
+              if(1<=sum(mens)){
                   object@predmat$AchrY[,mens]=
                       quantileNormalization(object@signal$AchrY[,mens])
                   object@predmat$BchrY[,mens]=
